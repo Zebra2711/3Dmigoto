@@ -16,9 +16,12 @@
 #include <unordered_map>
 
 using namespace std;
+using std::byte;
+using std::vector;
+using std::string;
 
 // VS2013 BUG WORKAROUND: Make sure this class has a unique type name!
-class AssemblerParseError: public exception {
+class AssemblerParseError: public std::exception {
 public:
 	string context, desc, msg;
 	int line_no;
@@ -35,7 +38,7 @@ public:
 	{
 		msg = "Assembly parse error";
 		if (line_no > 0)
-			msg += string(" on line ") + to_string(line_no);
+			msg += string(" on line ") + std::to_string(line_no);
 		msg += ", " + desc + ":\n\"" + context + "\"";
 	}
 
