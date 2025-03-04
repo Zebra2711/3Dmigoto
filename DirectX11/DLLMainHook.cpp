@@ -175,8 +175,8 @@ static bool verify_intended_target(HINSTANCE our_dll)
 	bool rc = false;
 	char *buf;
 	const char *section;
-	char target[MAX_PATH];
-	wchar_t target_w[MAX_PATH];
+	char target[MAX_PATH], loader[MAX_PATH];
+	wchar_t target_w[MAX_PATH], loader_w[MAX_PATH];
 	size_t target_len, exe_len;
 	HANDLE f;
 
@@ -197,14 +197,39 @@ static bool verify_intended_target(HINSTANCE our_dll)
 	// either in the common case where are being loaded out of the game
 	// directory, or this is the instance of the DLL loaded into the
 	// injector app, and we are okay with being loaded.
-	if (!_wcsicmp(our_path, exe_path))
-		return true;
+    if (our_path && exe_path) {
+        // Check exact path match first (fastest case)
+        if (CompareStringOrdinal(our_path, -1, exe_path, -1, TRUE) == CSTR_EQUAL) {
+            return true;
+        }
+        
+        // Allow our DLL to load if it's located in directory somewhere inside exe's directory tree
+        // It opens up possibilities for more complex file structure of injector apps
+        DWORD flags = FIND_FROMSTART | LINGUISTIC_IGNORECASE;
+
+		// Convert our_path to LPCWSTR if necessary
+		LPCWSTR our_path_wstr = reinterpret_cast<LPCWSTR>(our_path);
+		LPCWSTR exe_path_wstr = reinterpret_cast<LPCWSTR>(exe_path);
+
+        if (FindNLSStringEx(LOCALE_NAME_INVARIANT,    // Use invariant locale for performance
+                          flags,
+                          our_path_wstr,         // String to search in
+                          -1,                    // Use null-terminated
+                          exe_path_wstr,         // String to find
+                          -1,                    // Use null-terminated
+                          NULL,                  // Position not needed
+                          NULL,                  // Reserved
+                          NULL,                  // Reserved
+                          0) != -1) {            // Version
+            return true;
+        }
+    }
 
 	LogHooking("3DMigoto loaded from outside game directory\n"
 	           "Exe directory: \"%S\" basename: \"%S\"\n"
 	           "Our directory: \"%S\" basename: \"%S\"\n",
 		   exe_path, exe_basename, our_path, our_basename);
-
+ 
 	// Restore the path separator so we can include game directories in the
 	// comparison in the event that the game's executable name is too
 	// generic to match by itself:
@@ -259,6 +284,25 @@ static bool verify_intended_target(HINSTANCE our_dll)
 	section = find_ini_section_lite(buf, "loader");
 	if (!section)
 		goto out_free;
+
+	// Allow our DLL to load from any location as long as it's loaded by specified loader exe
+    if (find_ini_setting_lite(section, "loader", loader, MAX_PATH)) {
+        WCHAR loader_w_stack[MAX_PATH];
+        size_t len = strnlen(loader, MAX_PATH - 1);
+        if (len > 0 && len < MAX_PATH - 1) {
+            if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, loader, (DWORD)len, 
+                                    loader_w_stack, MAX_PATH - 1)) {
+                loader_w_stack[len] = L'\0';
+                if (CompareStringW(LOCALE_INVARIANT, 
+                                NORM_IGNORECASE,
+                                exe_basename, -1,
+                                loader_w_stack, -1) == CSTR_EQUAL) {
+                    rc = true;
+                    goto out_free;
+                }
+            }
+        }
+    }
 
 	if (!find_ini_setting_lite(section, "target", target, MAX_PATH))
 		goto out_free;

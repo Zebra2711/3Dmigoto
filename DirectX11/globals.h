@@ -286,6 +286,8 @@ struct TextureOverride {
 	int height;
 	float width_multiply;
 	float height_multiply;
+	int override_byte_stride;
+	int override_vertex_count;
 	std::vector<int> iterations;
 	bool expand_region_copy;
 	bool deny_cpu_read;
@@ -312,6 +314,8 @@ struct TextureOverride {
 		height(-1),
 		width_multiply(1.0),
 		height_multiply(1.0),
+		override_byte_stride(-1),
+		override_vertex_count(-1),
 		expand_region_copy(false),
 		deny_cpu_read(false),
 		filter_index(FLT_MAX),
@@ -400,9 +404,13 @@ struct Globals
 	bool gInitialized;
 	bool bIntendedTargetExe;
 	bool gReloadConfigPending;
+	bool gConfigInitialized;
 	bool gWipeUserConfig;
 	bool gLogInput;
+	bool gShowWarnings;
 	bool dump_all_profiles;
+	float gTime;
+	float gSettingsSaveTime;
 	DWORD ticks_at_launch;
 
 	wchar_t SHADER_PATH[MAX_PATH];
@@ -498,6 +506,9 @@ struct Globals
 	bool hide_cursor;
 	bool cursor_upscaling_bypass;
 	bool check_foreground_window;
+	int gSettingsAutoSaveInterval;
+	int gConfigInitializationDelay;
+	bool gSkipEarlyIncludesLoad;
 
 	CRITICAL_SECTION mCriticalSection;
 
@@ -691,10 +702,16 @@ struct Globals
 		gInitialized(false),
 		bIntendedTargetExe(false),
 		gReloadConfigPending(false),
+		gConfigInitialized(false),
 		gWipeUserConfig(false),
 		user_config_dirty(0),
 		gLogInput(false),
-		dump_all_profiles(false)
+		gShowWarnings(true),
+		gSettingsAutoSaveInterval(0),
+		gConfigInitializationDelay(0),
+		gSkipEarlyIncludesLoad(true),
+		dump_all_profiles(false),
+		gTime(0)
 	{
 		int i;
 

@@ -6,6 +6,7 @@
 #include "HookedDXGI.h"
 
 #include "nvprofile.h"
+#include <locale>
 
 //#include <Shlobj.h>
 //#include <Winuser.h>
@@ -91,6 +92,7 @@ static bool verify_intended_target_late()
 
 static bool InitializeDLL()
 {
+	setlocale(LC_CTYPE, "en_US.UTF-8");
 	if (G->gInitialized)
 		return true;
 

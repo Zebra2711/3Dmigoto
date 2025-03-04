@@ -2030,7 +2030,19 @@ static void override_resource_desc_common_2d_3d(DescType *desc, TextureOverride 
 	}
 }
 
-static void override_resource_desc(D3D11_BUFFER_DESC *desc, TextureOverride *textureOverride) {}
+static void override_resource_desc(D3D11_BUFFER_DESC *desc, TextureOverride *textureOverride) {
+	if (textureOverride->override_vertex_count > 0) {
+		if (textureOverride->override_byte_stride <= 0) {
+			textureOverride->override_byte_stride = desc->StructureByteStride;
+			if (textureOverride->override_byte_stride == 0) {
+				LogOverlayW(LOG_DIRE, L"Failed to detect stride for override_vertex_count=%d, please set override_byte_stride!\n - [%ls]\n", textureOverride->override_vertex_count, textureOverride->ini_section.c_str());
+				return;
+			}
+		}
+		//LogOverlayW(LOG_WARNING, L"OverrideByteWidth %s %d->%d\n", textureOverride->ini_section.c_str(), desc->ByteWidth, textureOverride->override_byte_stride * textureOverride->override_vertex_count);
+		desc->ByteWidth = textureOverride->override_byte_stride * textureOverride->override_vertex_count;
+	}
+}
 static void override_resource_desc(D3D11_TEXTURE1D_DESC *desc, TextureOverride *textureOverride) {}
 static void override_resource_desc(D3D11_TEXTURE2D_DESC *desc, TextureOverride *textureOverride)
 {

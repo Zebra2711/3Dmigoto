@@ -29,6 +29,8 @@ std::unordered_set<CommandList*> command_lists_profiling;
 std::unordered_set<CommandListCommand*> command_lists_cmd_profiling;
 std::vector<std::shared_ptr<CommandList>> dynamically_allocated_command_lists;
 
+bool find_local_variable(const wstring& name, CommandListScope* scope, CommandListVariable** var);
+
 
 // Adds consistent "3DMigoto" prefix to frame analysis log with appropriate
 // level of indentation for the current recursion level. Using a
@@ -126,7 +128,7 @@ static void _RunCommandList(CommandList *command_list, CommandListState *state, 
 	command_list_profiling_state profiling_state;
 
 	if (state->recursion > MAX_COMMAND_LIST_RECURSION) {
-		LogOverlay(LOG_WARNING, "WARNING: Command list recursion limit exceeded! Circular reference?\n");
+		LogOverlayW(LOG_WARNING, L"WARNING: Command list recursion limit exceeded! Circular reference?\n - [%ls]\n", command_list->ini_section.c_str());
 		return;
 	}
 
@@ -799,6 +801,68 @@ bail:
 	return false;
 }
 
+bool ParseStoreCommand(const wchar_t* section,
+	const wchar_t* key, wstring* val,
+	CommandList* explicit_command_list,
+	CommandList* pre_command_list, CommandList* post_command_list,
+	const wstring* ini_namespace)
+{
+	StoreCommand* operation = new StoreCommand();
+	CommandListVariable* var = NULL;
+
+	size_t start = 0, end;
+	wstring sub;
+	wstring name;
+
+	wchar_t buf[MAX_PATH];
+	wchar_t* src_ptr = NULL;
+
+	for (int i = 0; i < 3; i++) {
+		end = val->find(L',', start);
+		sub = val->substr(start, end - start);
+		if (i == 0) {
+			if (!find_local_variable(sub, pre_command_list->scope, &var) &&
+				!parse_command_list_var_name(sub, ini_namespace, &var)) {
+				goto bail;
+			}
+
+			operation->var = var;
+		}
+		if (i == 1) {
+			if (sub.length() >= MAX_PATH)
+				goto bail;
+
+			wcsncpy_s(buf, sub.c_str(), MAX_PATH);
+			operation->options = parse_enum_option_string<wchar_t*, ResourceCopyOptions>
+				(ResourceCopyOptionNames, buf, &src_ptr);
+			if (!src_ptr)
+				goto bail;
+
+			if (!operation->src.ParseTarget(src_ptr, true, ini_namespace))
+				goto bail;
+
+		}
+		if (i == 2) {
+			try {
+				operation->loc = std::stoi(sub.c_str());
+			}
+			catch (...) {
+				goto bail;
+			}
+		}
+		if (end == wstring::npos)
+			break;
+		start = end + 1;
+	}
+
+	operation->ini_section = section;
+	return AddCommandToList(operation, explicit_command_list, pre_command_list, NULL, NULL, section, key, val);
+
+bail:
+	delete operation;
+	return false;
+}
+
 static bool ParsePerDrawStereoOverride(const wchar_t *section,
 		const wchar_t *key, wstring *val,
 		CommandList *explicit_command_list,
@@ -949,6 +1013,9 @@ bool ParseCommandListGeneralCommands(const wchar_t *section,
 
 		if (!wcscmp(val->c_str(), L"draw_3dmigoto_overlay"))
 			return AddCommandToList(new Draw3DMigotoOverlayCommand(section), explicit_command_list, pre_command_list, NULL, NULL, section, key, val);
+	}
+	if (!wcscmp(key, L"store")) {
+		return ParseStoreCommand(section, key, val, explicit_command_list, pre_command_list, post_command_list, ini_namespace);
 	}
 
 	return ParseDrawCommand(section, key, val, explicit_command_list, pre_command_list, post_command_list, ini_namespace);
@@ -1324,6 +1391,45 @@ void DrawCommand::run(CommandListState *state)
 			else
 				COMMAND_LIST_LOG(state, "  Unable to determine index count\n");
 			break;
+	}
+}
+
+void StoreCommand::run(CommandListState* state)
+{
+	HackerContext* mHackerContext = state->mHackerContext;
+	ID3D11DeviceContext* mOrigContext1 = state->mOrigContext1;
+
+	D3D11_BUFFER_DESC desc;
+	D3D11_MAPPED_SUBRESOURCE map;
+	HRESULT hr;
+	ID3D11Resource* src_resource = NULL;
+	ID3D11Buffer* staging = NULL;
+	ID3D11View* src_view = NULL;
+	UINT stride = 0;
+	UINT offset = 0;
+	DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN;
+	UINT buf_src_size = 0;
+
+	src_resource = src.GetResource(state, &src_view, &stride, &offset, &format, &buf_src_size, NULL);
+
+	((ID3D11Buffer*)src_resource)->GetDesc(&desc);
+	desc.Usage = D3D11_USAGE_STAGING;
+	desc.BindFlags = 0;
+	desc.MiscFlags = 0;
+	desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+
+	LockResourceCreationMode();
+	hr = state->mHackerDevice->GetPassThroughOrigDevice1()->CreateBuffer(&desc, NULL, &staging);
+	UnlockResourceCreationMode();
+
+	if (!FAILED(hr)) {
+		mOrigContext1->CopyResource(staging, src_resource);
+		hr = mOrigContext1->Map(staging, 0, D3D11_MAP_READ, 0, &map);
+		if (!FAILED(hr)) {
+			var->fval = ((float*)map.pData)[loc];
+		}
+		mOrigContext1->Unmap(staging, 0);
+		staging->Release();
 	}
 }
 
@@ -3209,6 +3315,8 @@ static void tokenise(const wstring *expression, CommandListSyntaxTree *tree, con
 	shared_ptr<CommandListOperand> operand;
 	wstring token;
 	size_t pos = 0;
+	size_t start_pos = 0;
+	size_t end_pos = 0;
 	int ipos = 0;
 	size_t friendly_pos = 0;
 	float fval;
@@ -3286,7 +3394,20 @@ next_token:
 		//   to have spaces or other unusual characters while freeing
 		//   up . \ and $ for potential use as operators in the future.
 		if (remain[0] < '0' || remain[0] > '9') {
-			pos = remain.find_first_not_of(L"abcdefghijklmnopqrstuvwxyz_0123456789$\\.");
+			// To support UTF-8 namespaces, we'll have to match a string with any characters between two `\`
+			// So we must match the first token from `$\utf8name\var`, `Resource\utf8name\Test = null` or even `$var && $\utf8name\test` 
+			//
+			// Match token substring before namespace (i.e. `$` or `Resource`) or entire token without namespace (i.e. `$var`)
+			pos = remain.find_first_not_of(L"abcdefghijklmnopqrstuvwxyz_0123456789$.");
+			// Check if next char after match is namespace opening backslash
+			if (remain[pos] == L'\\') {
+				// Find tokens separation char to prevent namespace search overflow to next namespaced token
+				end_pos = remain.find_first_of(L"=&|+-/*><%!", pos + 1);
+				// Find namespace closing backslash aka first backlash starting from the end of string
+				start_pos = remain.rfind(L'\\', end_pos) + 1;
+				// Find the token boundary aka match remaining name (i.e. `var` or `Test`)
+				pos = remain.find_first_not_of(L"abcdefghijklmnopqrstuvwxyz_0123456789.", start_pos);
+			}
 			if (pos) {
 				token = remain.substr(0, pos);
 				operand = make_shared<CommandListOperand>(friendly_pos, token);
@@ -3978,7 +4099,7 @@ bool parse_command_list_var_name(const wstring &name, const wstring *ini_namespa
 	return true;
 }
 
-int find_local_variable(const wstring &name, CommandListScope *scope, CommandListVariable **var)
+bool find_local_variable(const wstring &name, CommandListScope *scope, CommandListVariable **var)
 {
 	CommandListScope::iterator it;
 
@@ -4005,7 +4126,7 @@ bool declare_local_variable(const wchar_t *section, wstring &name,
 	CommandListVariable *var = NULL;
 
 	if (!valid_variable_name(name)) {
-		LogOverlay(LOG_WARNING, "WARNING: Illegal local variable name: [%S] \"%S\"\n", section, name.c_str());
+		LogOverlayW(LOG_WARNING, L"Illegal local variable name:  \"%ls\"\n - [%ls]\n", name.c_str(), section);
 		return false;
 	}
 
@@ -4015,7 +4136,7 @@ bool declare_local_variable(const wchar_t *section, wstring &name,
 		// independent scopes (if {local $tmp} else {local $tmp}), but
 		// we won't allow masking a local variable from a parent scope,
 		// because that's usually a bug. Choose a different name son.
-		LogOverlay(LOG_WARNING, "WARNING: Illegal redeclaration of local variable [%S] %S\n", section, name.c_str());
+		LogOverlayW(LOG_WARNING, L"WARNING: Illegal redeclaration of local variable \"%ls\"\n - [%ls]\n", name.c_str(), section);
 		return false;
 	}
 
@@ -4023,7 +4144,7 @@ bool declare_local_variable(const wchar_t *section, wstring &name,
 		// Not making this fatal since this could clash between say a
 		// global in the d3dx.ini and a local variable in another ini.
 		// Just issue a notice in hunting mode and carry on.
-		LogOverlay(LOG_NOTICE, "WARNING: [%S] local %S masks a global variable with the same name\n", section, name.c_str());
+		LogOverlayW(LOG_NOTICE, L"WARNING: Local \"%ls\" masks a global variable with the same name\n - [%ls]\n", name.c_str(), section);
 	}
 
 	pre_command_list->static_vars.emplace_front(name, 0.0f, VariableFlags::NONE);
@@ -4572,7 +4693,7 @@ void CustomResource::SubstantiateBuffer(ID3D11Device *mOrigDevice1, void **buf, 
 		is_null = false;
 		OverrideOutOfBandInfo(&format, &stride);
 	} else {
-		LogOverlay(LOG_NOTICE, "Failed to substantiate custom %S [%S]: 0x%x\n",
+		LogOverlayW(LOG_NOTICE, L"Failed to substantiate custom %ls [%ls]: 0x%x\n",
 				lookup_enum_name(CustomResourceTypeNames, override_type), name.c_str(), hr);
 		LogResourceDesc(&desc);
 	}
@@ -4598,7 +4719,7 @@ void CustomResource::SubstantiateTexture1D(ID3D11Device *mOrigDevice1)
 		device = mOrigDevice1;
 		is_null = false;
 	} else {
-		LogOverlay(LOG_NOTICE, "Failed to substantiate custom %S [%S]: 0x%x\n",
+		LogOverlayW(LOG_NOTICE, L"Failed to substantiate custom %ls [%ls]: 0x%x\n",
 				lookup_enum_name(CustomResourceTypeNames, override_type), name.c_str(), hr);
 		LogResourceDesc(&desc);
 	}
@@ -4624,7 +4745,7 @@ void CustomResource::SubstantiateTexture2D(ID3D11Device *mOrigDevice1)
 		device = mOrigDevice1;
 		is_null = false;
 	} else {
-		LogOverlay(LOG_NOTICE, "Failed to substantiate custom %S [%S]: 0x%x\n",
+		LogOverlayW(LOG_NOTICE, L"Failed to substantiate custom %ls [%ls]: 0x%x\n",
 				lookup_enum_name(CustomResourceTypeNames, override_type), name.c_str(), hr);
 		LogResourceDesc(&desc);
 	}
@@ -4650,7 +4771,7 @@ void CustomResource::SubstantiateTexture3D(ID3D11Device *mOrigDevice1)
 		device = mOrigDevice1;
 		is_null = false;
 	} else {
-		LogOverlay(LOG_NOTICE, "Failed to substantiate custom %S [%S]: 0x%x\n",
+		LogOverlayW(LOG_NOTICE, L"Failed to substantiate custom %ls [%ls]: 0x%x\n",
 				lookup_enum_name(CustomResourceTypeNames, override_type), name.c_str(), hr);
 		LogResourceDesc(&desc);
 	}
@@ -4911,7 +5032,7 @@ static ID3D11Resource * inter_device_resource_transfer(ID3D11Device *dst_dev, ID
 				goto err;
 			}
 			if (is_dsv_format(tex1d_desc.Format) > 0) {
-				LogOverlay(LOG_NOTICE, "Inter-device transfer of [%S] with depth/stencil format %s may or may not work. Please report success/failure.\n",
+				LogOverlayW(LOG_NOTICE, L"Inter-device transfer of [%ls] with depth/stencil format %S may or may not work. Please report success/failure.\n",
 						name->c_str(), TexFormatStr(tex1d_desc.Format));
 			}
 
@@ -4975,7 +5096,7 @@ static ID3D11Resource * inter_device_resource_transfer(ID3D11Device *dst_dev, ID
 				goto err;
 			}
 			if (is_dsv_format(tex2d_desc.Format) > 0) {
-				LogOverlay(LOG_NOTICE, "Inter-device transfer of [%S] with depth/stencil format %s may or may not work. Please report success/failure.\n",
+				LogOverlayW(LOG_NOTICE, L"Inter-device transfer of [%ls] with depth/stencil format %S may or may not work. Please report success/failure.\n",
 						name->c_str(), TexFormatStr(tex2d_desc.Format));
 			}
 
@@ -5435,7 +5556,7 @@ bail:
 }
 
 static bool ParseElseCommand(const wchar_t *section,
-		CommandList *pre_command_list, CommandList *post_command_list)
+		CommandList *pre_command_list, CommandList *post_command_list, const wstring* ini_namespace)
 {
 	// Clear deepest scope level to isolate local variables:
 	pre_command_list->scope->front().clear();
@@ -5444,7 +5565,7 @@ static bool ParseElseCommand(const wchar_t *section,
 }
 
 static bool _ParseEndIfCommand(const wchar_t *section,
-		CommandList *command_list, bool post, bool has_nested_else_if = false)
+		CommandList *command_list, const wstring* ini_namespace, bool post, bool has_nested_else_if = false)
 {
 	CommandList::Commands::reverse_iterator rit;
 	IfCommand *if_command;
@@ -5485,7 +5606,7 @@ static bool _ParseEndIfCommand(const wchar_t *section,
 				if_command->post_finalised = true;
 				if_command->has_nested_else_if = has_nested_else_if;
 				if (else_if_command)
-					return _ParseEndIfCommand(section, command_list, post, true);
+					return _ParseEndIfCommand(section, command_list,ini_namespace, post, true);
 				return true;
 			} else if (!post && !if_command->pre_finalised) {
 				// C++ gotcha: reverse_iterator::base() points to the *next* element
@@ -5500,24 +5621,24 @@ static bool _ParseEndIfCommand(const wchar_t *section,
 				if_command->pre_finalised = true;
 				if_command->has_nested_else_if = has_nested_else_if;
 				if (else_if_command)
-					return _ParseEndIfCommand(section, command_list, post, true);
+					return _ParseEndIfCommand(section, command_list, ini_namespace, post, true);
 				return true;
 			}
 		}
 	}
 
-	LogOverlay(LOG_WARNING, "WARNING: [%S] endif missing if\n", section);
+	LogOverlayW(LOG_WARNING, L"Statement \"endif\" missing \"if\"\n - [%ls] @ [%ls]\n", section, ini_namespace);
 	return false;
 }
 
 static bool ParseEndIfCommand(const wchar_t *section,
-		CommandList *pre_command_list, CommandList *post_command_list)
+		CommandList *pre_command_list, CommandList *post_command_list, const wstring* ini_namespace)
 {
 	bool ret;
 
-	ret = _ParseEndIfCommand(section, pre_command_list, false);
+	ret = _ParseEndIfCommand(section, pre_command_list, ini_namespace, false);
 	if (post_command_list)
-	    ret = ret && _ParseEndIfCommand(section, post_command_list, true);
+	    ret = ret && _ParseEndIfCommand(section, post_command_list, ini_namespace, true);
 
 	if (ret)
 		pre_command_list->scope->pop_front();
@@ -5536,9 +5657,9 @@ bool ParseCommandListFlowControl(const wchar_t *section, const wstring *line,
 	if (!wcsncmp(line->c_str(), L"else if ", 8))
 		return ParseElseIfCommand(section, line, 8, pre_command_list, post_command_list, ini_namespace);
 	if (!wcscmp(line->c_str(), L"else"))
-		return ParseElseCommand(section, pre_command_list, post_command_list);
+		return ParseElseCommand(section, pre_command_list, post_command_list, ini_namespace);
 	if (!wcscmp(line->c_str(), L"endif"))
-		return ParseEndIfCommand(section, pre_command_list, post_command_list);
+		return ParseEndIfCommand(section, pre_command_list, post_command_list, ini_namespace);
 
 	return false;
 }

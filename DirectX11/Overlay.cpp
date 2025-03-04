@@ -19,6 +19,8 @@
 #include "HackerDevice.h"
 #include "HackerContext.h"
 
+#include <stdexcept>
+
 #define MAX_SIMULTANEOUS_NOTICES 10
 
 static bool has_notice = false;
@@ -52,8 +54,8 @@ struct LogLevelParams log_levels[] = {
 	{ DirectX::Colors::Red,       20000, false, &Overlay::mFontNotifications }, // DIRE
 	{ DirectX::Colors::OrangeRed, 10000, false, &Overlay::mFontNotifications }, // WARNING
 	{ DirectX::Colors::OrangeRed, 10000, false, &Overlay::mFontProfiling     }, // WARNING_MONOSPACE
-	{ DirectX::Colors::Orange,     5000,  true, &Overlay::mFontNotifications }, // NOTICE
-	{ DirectX::Colors::LimeGreen,  2000,  true, &Overlay::mFontNotifications }, // INFO
+	{ DirectX::Colors::Orange,     5000, false, &Overlay::mFontNotifications }, // NOTICE
+	{ DirectX::Colors::LimeGreen,  2000, false, &Overlay::mFontNotifications }, // INFO
 };
 
 // Side note: Not really stoked with C++ string handling.  There are like 4 or
@@ -862,6 +864,10 @@ void ClearNotices()
 
 void LogOverlayW(LogLevel level, wchar_t *fmt, ...)
 {
+	if (!G->gShowWarnings && level != LOG_INFO) {
+		return;
+	}
+
 	wchar_t msg[maxstring];
 	va_list ap;
 
@@ -891,6 +897,10 @@ void LogOverlayW(LogLevel level, wchar_t *fmt, ...)
 // format string correctly and convert the result to a wide string.
 void LogOverlay(LogLevel level, char *fmt, ...)
 {
+	if (!G->gShowWarnings && level != LOG_INFO) {
+		return;
+	}
+
 	char amsg[maxstring];
 	wchar_t wmsg[maxstring];
 	va_list ap;

@@ -232,6 +232,8 @@ void HackerSwapChain::RunFrameActions()
 	// so that the most lost will be one frame worth.  Tradeoff of performance to accuracy
 	if (LogFile) fflush(LogFile);
 
+	G->gTime = (GetTickCount() - G->ticks_at_launch) / 1000.0f;
+
 	// Run the command list here, before drawing the overlay so that a
 	// custom shader on the present call won't remove the overlay. Also,
 	// run this before most frame actions so that this can be considered as
@@ -253,7 +255,7 @@ void HackerSwapChain::RunFrameActions()
 			G->analyse_frame = false;
 			if (G->DumpUsage)
 				DumpUsage(G->ANALYSIS_PATH);
-			LogOverlay(LOG_INFO, "Frame analysis saved to %S\n", G->ANALYSIS_PATH);
+			LogOverlayW(LOG_INFO, L"Frame analysis saved to %ls\n", G->ANALYSIS_PATH);
 		}
 	}
 
@@ -274,6 +276,23 @@ void HackerSwapChain::RunFrameActions()
 	// instead and we handle it now.
 	if (G->gReloadConfigPending)
 		ReloadConfig(mHackerDevice);
+
+	// Regular LoadConfigFile() on startup fails to properly load all resources in some edge cases 
+	// So, as bandaid solution, it has some sense to force ReloadConfig() after DLL is fully initialized
+	// This way resources will be loaded properly before modded object appear on screen and cause crash
+	if (G->gConfigInitialized) {
+		// Autosave persistent variables every gSettingsAutoSaveInterval seconds
+		if (G->gTime - G->gSettingsSaveTime > G->gSettingsAutoSaveInterval) {
+			SavePersistentSettings();
+			//LogOverlay(LOG_INFO, "Saved Persistent Variables\n");
+		}
+	}
+	else {
+		if (G->gTime > G->gConfigInitializationDelay) {
+			G->gConfigInitialized = true;
+			ReloadConfig(mHackerDevice);
+		}
+	}
 
 	// Draw the on-screen overlay text with hunting and informational
 	// messages, before final Present. We now do this after the shader and
@@ -366,9 +385,10 @@ STDMETHODIMP HackerSwapChain::QueryInterface(THIS_
 	}
 	if (riid == __uuidof(IDXGISwapChain3))
 	{
-		LogInfo("***  returns E_NOINTERFACE as error for IDXGISwapChain3.\n");
-		*ppvObject = NULL;
-		return E_NOINTERFACE;
+		// Return interface without wrapper to support HDR color space setup.
+		LogInfo("  return IDXGISwapChain3 interface (%p) without wrapper.\n", ppvObject);
+		LogInfo("  returns result = %x for %p\n", hr, ppvObject);
+		return hr;
 	}
 	if (riid == __uuidof(IDXGISwapChain4))
 	{
