@@ -700,8 +700,12 @@ HRESULT FrameAnalysisContext::StageResource(ID3D11Texture2D *src,
 	}
 
 	hr = ResolveMSAA(src, srcDesc, &resolved, format);
-	if (FAILED(hr))
-		goto err_release;
+    if (FAILED(hr)) {
+        // err_release
+        if (staging)
+           staging->Release();
+        return hr;
+    }
 	if (resolved)
 		src = resolved;
 
@@ -712,11 +716,6 @@ HRESULT FrameAnalysisContext::StageResource(ID3D11Texture2D *src,
 
 	*dst = staging;
 	return S_OK;
-
-err_release:
-	if (staging)
-		staging->Release();
-	return hr;
 }
 
 // TODO: Refactor this with StereoScreenShot().
@@ -747,7 +746,7 @@ void FrameAnalysisContext::DumpStereoResource(ID3D11Texture2D *resource, wchar_t
 		// intermediate staging resource first.
 		hr = StageResource(src, &srcDesc, &tmpResource, format);
 		if (FAILED(hr))
-			goto out;
+			stereoResource->Release(); // out
 		src = tmpResource;
 	}
 
@@ -774,9 +773,6 @@ void FrameAnalysisContext::DumpStereoResource(ID3D11Texture2D *resource, wchar_t
 
 	if (tmpResource)
 		tmpResource->Release();
-
-out:
-	stereoResource->Release();
 }
 
 static void copy_until_extension(wchar_t *txt_filename, const wchar_t *bin_filename, size_t size, wchar_t **pos, size_t *rem)
@@ -1437,7 +1433,7 @@ void FrameAnalysisContext::DumpVBTxt(wchar_t *filename, D3D11_MAPPED_SUBRESOURCE
 	}
 	if (!stride) {
 		FALogErr(L"Cannot dump vertex buffer with stride=0\n");
-		goto out_close;
+		fclose(fd); // out_close
 	}
 
 	if (layout_desc) {
@@ -1457,9 +1453,6 @@ void FrameAnalysisContext::DumpVBTxt(wchar_t *filename, D3D11_MAPPED_SUBRESOURCE
 	} else {
 		dump_vb_unknown_layout(fd, map, size, slot, offset, first, count, stride);
 	}
-
-out_close:
-	fclose(fd);
 }
 
 void FrameAnalysisContext::dedupe_buf_filename_ib_txt(const wchar_t *bin_filename,
@@ -1496,12 +1489,12 @@ void FrameAnalysisContext::DumpIBTxt(wchar_t *filename, D3D11_MAPPED_SUBRESOURCE
 		UINT size, DXGI_FORMAT format, UINT offset, UINT first, UINT count,
 		D3D11_PRIMITIVE_TOPOLOGY topology)
 {
-	FILE *fd = NULL;
+	FILE *fd = nullptr;
 	uint16_t *buf16 = (uint16_t*)map->pData;
 	uint32_t *buf32 = (uint32_t*)map->pData;
 	UINT start, end, i;
 	errno_t err;
-	int grouping = 1;
+	uint8_t grouping = 1;
 
 	err = wfopen_ensuring_access(&fd, filename, L"w");
 	if (!fd) {
@@ -1515,17 +1508,38 @@ void FrameAnalysisContext::DumpIBTxt(wchar_t *filename, D3D11_MAPPED_SUBRESOURCE
 		fprintf(fd, "index count: %u\n", count);
 	}
 
-	if (topology != D3D11_PRIMITIVE_TOPOLOGY_UNDEFINED)
-		fprintf(fd, "topology: %s\n", TopologyStr(topology));
-	switch(topology) {
-		case D3D11_PRIMITIVE_TOPOLOGY_LINELIST:
-			grouping = 2;
-			break;
-		case D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST:
-			grouping = 3;
-			break;
-		// TODO: Appropriate grouping for other input topologies
-	}
+	if (topology != D3D11_PRIMITIVE_TOPOLOGY_UNDEFINED) {
+        fprintf(fd, "topology: %s\n", TopologyStr(topology));
+	    switch(topology) {
+		    case D3D11_PRIMITIVE_TOPOLOGY_LINELIST:
+		    case D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP:
+                grouping = 2;
+                break;
+		    case D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST:
+		    case D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP:
+                grouping = 3;
+			    break;
+            case D3D11_PRIMITIVE_TOPOLOGY_POINTLIST:
+                grouping = 1;
+                break;
+            case D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST_ADJ:
+            case D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP_ADJ:
+                grouping = 6;
+                break;
+            case D3D11_PRIMITIVE_TOPOLOGY_LINELIST_ADJ:
+            case D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP_ADJ:
+                grouping = 4;
+                break;
+            default:
+                grouping = 1;
+                break;
+	    }
+    } else if (topology >= D3D11_PRIMITIVE_TOPOLOGY_1_CONTROL_POINT_PATCHLIST &&
+               topology <= D3D11_PRIMITIVE_TOPOLOGY_32_CONTROL_POINT_PATCHLIST) {
+        // For patch lists, grouping is determined by control point count
+        // Topology enum values are sequential starting from 1-control point
+        grouping = static_cast<uint8_t>(topology - D3D11_PRIMITIVE_TOPOLOGY_1_CONTROL_POINT_PATCHLIST + 1);
+    } else grouping = 1;
 
 	switch(format) {
 	case DXGI_FORMAT_R16_UINT:
@@ -1576,11 +1590,10 @@ void FrameAnalysisContext::DumpDesc(DescType *desc, const wchar_t *filename)
 {
 	FILE *fd = NULL;
 	char buf[256];
-	errno_t err;
+	const errno_t err = wfopen_ensuring_access(&fd, filename, L"w");
 
 	StrResourceDesc(buf, 256, desc);
 
-	err = wfopen_ensuring_access(&fd, filename, L"w");
 	if (!fd) {
 		FALogErr(L"Unable to create %ls: %u\n", filename, err);
 		return;

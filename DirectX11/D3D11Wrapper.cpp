@@ -115,8 +115,8 @@ static bool InitializeDLL()
 	// Load our nvapi wrapper from the same directory as our DLL, for injection cases
 	wchar_t nvapi_path[MAX_PATH];
 	if (GetModuleFileName(migoto_handle, nvapi_path, MAX_PATH)) {
-		wcsrchr(nvapi_path, L'\\')[1] = '\0';
-		wcscat(nvapi_path, NVAPI_DLL);
+        *std::wcsrchr(nvapi_path, L'\\') = L'\0';
+        wcscpy_s(nvapi_path + wcslen(nvapi_path), MAX_PATH - wcslen(nvapi_path), NVAPI_DLL);
 		LoadLibrary(nvapi_path);
 	}
 
@@ -670,7 +670,7 @@ static UINT EnableDebugFlags(UINT flags)
 static void ShowDebugInfo(ID3D11Device *origDevice)
 {
 	ID3D11Debug *d3dDebug = nullptr;
-	if (origDevice != nullptr)
+	if (origDevice)
 	{
 		if (SUCCEEDED(origDevice->QueryInterface(__uuidof(ID3D11Debug), (void**)&d3dDebug)))
 		{
@@ -766,7 +766,7 @@ static HackerDevice* wrap_d3d11_device_and_context(ID3D11Device **ppDevice, ID3D
 	ID3D11Device1 *origDevice1 = nullptr;
 	ID3D11DeviceContext1 *origContext1 = nullptr;
 	HRESULT res;
-	if (retDevice != nullptr)
+	if (retDevice)
 	{
 		res = retDevice->QueryInterface(IID_PPV_ARGS(&origDevice1));
 		LogInfo("  QueryInterface(ID3D11Device1) returned result = %x, device1 handle = %p\n", res, origDevice1);
@@ -775,7 +775,7 @@ static HackerDevice* wrap_d3d11_device_and_context(ID3D11Device **ppDevice, ID3D
 		else
 			origDevice1 = static_cast<ID3D11Device1*>(retDevice);
 	}
-	if (retContext != nullptr)
+	if (retContext)
 	{
 		res = retContext->QueryInterface(IID_PPV_ARGS(&origContext1));
 		LogInfo("  QueryInterface(ID3D11DeviceContext1) returned result = %x, context1 handle = %p\n", res, origContext1);
@@ -787,7 +787,7 @@ static HackerDevice* wrap_d3d11_device_and_context(ID3D11Device **ppDevice, ID3D
 
 	// Create a wrapped version of the original device to return to the game.
 	HackerDevice *deviceWrap = nullptr;
-	if (origDevice1 != nullptr)
+	if (origDevice1)
 	{
 		deviceWrap = new HackerDevice(origDevice1, origContext1);
 
@@ -810,7 +810,7 @@ static HackerDevice* wrap_d3d11_device_and_context(ID3D11Device **ppDevice, ID3D
 
 	// Create a wrapped version of the original context to return to the game.
 	HackerContext *contextWrap = nullptr;
-	if (origContext1 != nullptr)
+	if (origContext1)
 	{
 		contextWrap = HackerContextFactory(origDevice1, origContext1);
 
@@ -823,15 +823,15 @@ static HackerDevice* wrap_d3d11_device_and_context(ID3D11Device **ppDevice, ID3D
 
 	// Let each of the new Hacker objects know about the other, needed for unusual
 	// calls in the Hacker objects where we want to return the Hacker versions.
-	if (deviceWrap != nullptr)
+	if (deviceWrap)
 		deviceWrap->SetHackerContext(contextWrap);
-	if (contextWrap != nullptr)
+	if (contextWrap)
 		contextWrap->SetHackerDevice(deviceWrap);
 
 	// With all the interacting objects set up, we can now safely finish the HackerDevice init.
-	if (deviceWrap != nullptr)
+	if (deviceWrap)
 		deviceWrap->Create3DMigotoResources();
-	if (contextWrap != nullptr) {
+	if (contextWrap) {
 		contextWrap->Bind3DMigotoResources();
 		if (!G->constants_run)
 			contextWrap->InitIniParams();

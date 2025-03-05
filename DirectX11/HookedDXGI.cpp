@@ -362,7 +362,7 @@ static void ForceDisplayParams1(DXGI_SWAP_CHAIN_DESC1 *pDesc, DXGI_SWAP_CHAIN_FU
 
 void override_swap_chain(DXGI_SWAP_CHAIN_DESC *pDesc, DXGI_SWAP_CHAIN_DESC *origSwapChainDesc)
 {
-	if (pDesc == nullptr)
+	if (!pDesc)
 		return;
 
 	// Save window handle so we can translate mouse coordinates to the window:
@@ -399,7 +399,7 @@ static void override_factory2_swap_chain(
 		_In_ DXGI_SWAP_CHAIN_DESC1 *descCopy,
 		_In_opt_ DXGI_SWAP_CHAIN_FULLSCREEN_DESC *fullscreenCopy)
 {
-	if (ppDesc && *ppDesc != nullptr)
+	if (ppDesc && *ppDesc)
 	{
 		// Required in case the software mouse and upscaling are on at the same time
 		// TODO: Use a helper class to track *all* different resolutions

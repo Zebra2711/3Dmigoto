@@ -437,7 +437,7 @@ HRESULT WINAPI CreateDXGIFactory2(
 	// proper object by passing the IDXGIFactory2 RIID to CreateDXGIFactory. 
 	// The reason to do all this is to make it possible to have a single 
 	// dxgi.dll loader that works on all Win7 and Win10.
-	if (_CreateDXGIFactory2 == nullptr)
+	if (!_CreateDXGIFactory2)
 	{
 		HRESULT hr = (*_CreateDXGIFactory)(riid, ppFactory);
 		LogInfo("  _CreateDXGIFactory returns %x factory = %p \n", hr, *ppFactory);

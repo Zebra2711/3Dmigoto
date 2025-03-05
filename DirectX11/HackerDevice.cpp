@@ -2830,7 +2830,7 @@ STDMETHODIMP_(void) HackerDevice::GetImmediateContext(THIS_
 	LogDebug("HackerDevice::GetImmediateContext(%s@%p) called with:%p\n", 
 		type_name(this), this, ppImmediateContext);
 
-	if (ppImmediateContext == nullptr)
+	if (!ppImmediateContext)
 	{
 		LogInfo("  *** no return possible, nullptr input.\n");
 		return;
@@ -2850,7 +2850,7 @@ STDMETHODIMP_(void) HackerDevice::GetImmediateContext(THIS_
 	// we can arrive here with no mHackerContext created if one was not
 	// requested from CreateDevice/CreateDeviceFromSwapChain. In that case
 	// we need to wrap the immediate context now:
-	if (mHackerContext == nullptr)
+	if (!mHackerContext)
 	{
 		LogInfo("*** HackerContext missing at HackerDevice::GetImmediateContext\n");
 
@@ -2903,7 +2903,7 @@ STDMETHODIMP_(void) HackerDevice::GetImmediateContext1(
 	LogInfo("HackerDevice::GetImmediateContext1(%s@%p) called with:%p\n",
 		type_name(this), this, ppImmediateContext);
 
-	if (ppImmediateContext == nullptr)
+	if (!ppImmediateContext)
 	{
 		LogInfo("  *** no return possible, nullptr input.\n");
 		return;
@@ -2915,7 +2915,7 @@ STDMETHODIMP_(void) HackerDevice::GetImmediateContext1(
 	// we can arrive here with no mHackerContext created if one was not
 	// requested from CreateDevice/CreateDeviceFromSwapChain. In that case
 	// we need to wrap the immediate context now:
-	if (mHackerContext == nullptr)
+	if (!mHackerContext)
 	{
 		LogInfo("*** HackerContext1 missing at HackerDevice::GetImmediateContext1\n");
 

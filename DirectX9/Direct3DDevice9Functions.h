@@ -1544,7 +1544,7 @@ void D3D9Wrapper::IDirect3DDevice9::BeforeDraw(DrawContext & data)
 		vertices += _vertices;
 		drawCalls += 1;
 
-		if (m_pActiveDepthStencil != nullptr)
+		if (m_pActiveDepthStencil)
 		{
 			if (m_pActiveDepthStencil->possibleDepthBuffer) {
 				m_pActiveDepthStencil->depthSourceInfo.drawcall_count = drawCalls;
@@ -2549,7 +2549,7 @@ STDMETHODIMP D3D9Wrapper::IDirect3DDevice9::CreateAdditionalSwapChain(THIS_ ::D3
 	CheckDevice(this);
 	::D3DPRESENT_PARAMETERS originalPresentParams;
 
-	if (pPresentationParameters != nullptr) {
+	if (pPresentationParameters) {
 		// Save off the window handle so we can translate mouse cursor
 		// coordinates to the window:
 		if (pPresentationParameters->hDeviceWindow != NULL)
@@ -2722,7 +2722,7 @@ STDMETHODIMP D3D9Wrapper::IDirect3DDevice9::Reset(THIS_ ::D3DPRESENT_PARAMETERS*
 	LogInfo("  MultiSampleType %d\n", pPresentationParameters->MultiSampleType);
 	LogInfo("  MultiSampleQuality %d\n", pPresentationParameters->MultiSampleQuality);
 	::D3DPRESENT_PARAMETERS originalPresentParams;
-	if (pPresentationParameters != nullptr) {
+	if (pPresentationParameters) {
 		// Save off the window handle so we can translate mouse cursor
 		// coordinates to the window:
 		if (pPresentationParameters->hDeviceWindow != NULL)
@@ -2801,7 +2801,7 @@ STDMETHODIMP D3D9Wrapper::IDirect3DDevice9::ResetEx(THIS_ ::D3DPRESENT_PARAMETER
 		LogInfo("  ScanLineOrdering = %d\n", pFullscreenDisplayMode->ScanLineOrdering);
 	}
 	::D3DPRESENT_PARAMETERS originalPresentParams;
-	if (pPresentationParameters != nullptr) {
+	if (pPresentationParameters) {
 		// Save off the window handle so we can translate mouse cursor
 		// coordinates to the window:
 		if (pPresentationParameters->hDeviceWindow != NULL)
@@ -4156,7 +4156,7 @@ STDMETHODIMP D3D9Wrapper::IDirect3DDevice9::StretchRect(THIS_ D3D9Wrapper::IDire
 						NvAPI_D3D9_RegisterResource(pWrappedDest->depthstencil_replacement_texture);
 						pWrappedDest->depthstencil_replacement_nvapi_registered = true;
 					}
-					if (m_pActiveDepthStencil != nullptr && m_pActiveDepthStencil == depthstencil_replacement)
+					if (m_pActiveDepthStencil && m_pActiveDepthStencil == depthstencil_replacement)
 					{
 						GetD3D9Device()->SetDepthStencilSurface(depthstencil_replacement->depthstencil_replacement_surface);
 					}
@@ -4450,7 +4450,7 @@ STDMETHODIMP D3D9Wrapper::IDirect3DDevice9::SetDepthStencilSurface(THIS_ D3D9Wra
 		hr = GetD3D9Device()->SetDepthStencilSurface(pActualStencilForCurrentSide);
 	}
 	else {
-		if (depthstencil_replacement != nullptr && pNewDepthStencil == depthstencil_replacement)
+		if (depthstencil_replacement && pNewDepthStencil == depthstencil_replacement)
 			hr = GetD3D9Device()->SetDepthStencilSurface(pNewDepthStencil->depthstencil_replacement_surface);
 		else
 			hr = GetD3D9Device()->SetDepthStencilSurface(baseStencil);
@@ -5317,7 +5317,7 @@ inline void D3D9Wrapper::IDirect3DDevice9::DetectDepthSource()
 		}
 	}
 
-	if (best_match != nullptr)
+	if (best_match)
 	{
 		if (best_match->depthSourceInfo.resolvedAA_dest)
 			best_match = best_match->depthSourceInfo.resolvedAA_dest;
@@ -5342,7 +5342,7 @@ inline void D3D9Wrapper::IDirect3DDevice9::DetectDepthSource()
 
 inline bool D3D9Wrapper::IDirect3DDevice9::CreateDepthStencilReplacement(D3D9Wrapper::IDirect3DSurface9 * depthStencil, bool resolvedAA)
 {
-	if (depthStencil != nullptr)
+	if (depthStencil)
 	{
 		::D3DSURFACE_DESC desc;
 		depthStencil->GetD3DSurface9()->GetDesc(&desc);
@@ -5387,7 +5387,7 @@ inline bool D3D9Wrapper::IDirect3DDevice9::CreateDepthStencilReplacement(D3D9Wra
 			else {
 				hr = depthstencil_replacement->depthstencil_replacement_texture->GetSurfaceLevel(0, &depthstencil_replacement->depthstencil_replacement_surface);
 			}
-			if (m_pActiveDepthStencil != nullptr)
+			if (m_pActiveDepthStencil)
 			{
 				if (m_pActiveDepthStencil == depthstencil_replacement)
 				{

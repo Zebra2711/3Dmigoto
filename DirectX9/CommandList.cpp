@@ -3428,7 +3428,7 @@ static BOOL ShaderBool(D3D9Wrapper::IDirect3DDevice9 *device, wchar_t shader_typ
 }
 void GetSurfaceWidth(CommandListState * state, ::IDirect3DSurface9 *pSurface, float *val)
 {
-	if (pSurface == nullptr)
+	if (!pSurface)
 		return;
 	D3DSURFACE_DESC desc;
 	pSurface->GetDesc(&desc);
@@ -3438,7 +3438,7 @@ void GetSurfaceWidth(CommandListState * state, ::IDirect3DSurface9 *pSurface, fl
 
 void GetSurfaceHeight(CommandListState * state, ::IDirect3DSurface9 *pSurface, float *val)
 {
-	if (pSurface == nullptr)
+	if (!pSurface)
 		return;
 	D3DSURFACE_DESC desc;
 	pSurface->GetDesc(&desc);
@@ -3448,7 +3448,7 @@ void GetSurfaceHeight(CommandListState * state, ::IDirect3DSurface9 *pSurface, f
 }
 void GetTextureWidth(::IDirect3DBaseTexture9 *pTexture, float *val)
 {
-	if (pTexture == nullptr)
+	if (!pTexture)
 		return;
 	D3DSURFACE_DESC surDesc;
 	D3DVOLUME_DESC volDesc;
@@ -3474,7 +3474,7 @@ void GetTextureWidth(::IDirect3DBaseTexture9 *pTexture, float *val)
 
 void GetTextureHeight(::IDirect3DBaseTexture9 *pTexture, float *val)
 {
-	if (pTexture == nullptr)
+	if (!pTexture)
 		return;
 	D3DSURFACE_DESC surDesc;
 	D3DVOLUME_DESC volDesc;

@@ -1168,7 +1168,7 @@ int __cdecl wmain(_In_ int argc, _In_z_count_(argc) wchar_t* argv[])
                             wprintf(L"Command-line arguments not supported in -flist file\n");
                             return 1;
                         }
-                        else if (wcspbrk(fname, L"?*") != nullptr)
+                        else if (wcspbrk(fname, L"?*"))
                         {
                             wprintf(L"Wildcards not supported in -flist file\n");
                             return 1;
@@ -1187,7 +1187,7 @@ int __cdecl wmain(_In_ int argc, _In_z_count_(argc) wchar_t* argv[])
                 break;
             }
         }
-        else if (wcspbrk(pArg, L"?*") != nullptr)
+        else if (wcspbrk(pArg, L"?*"))
         {
             size_t count = conversion.size();
             SearchForFiles(pArg, conversion, (dwOptions & (1 << OPT_RECURSIVE)) != 0);

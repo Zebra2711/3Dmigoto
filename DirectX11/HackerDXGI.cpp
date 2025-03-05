@@ -113,7 +113,7 @@ void InstallSetWindowPosHook()
 	int fail = 0;
 
 	// Only attempt to hook it once:
-	if (fnOrigSetWindowPos != nullptr)
+	if (fnOrigSetWindowPos)
 		return;
 
 	hUser32 = NktHookLibHelpers::GetModuleBaseAddress(L"User32.dll");
@@ -1270,7 +1270,7 @@ STDMETHODIMP HackerUpscalingSwapChain::ResizeTarget(THIS_
 {
 	LogInfo("HackerUpscalingSwapChain::ResizeTarget(%s@%p) called\n", type_name(this), this);
 
-	if (pNewTargetParameters != nullptr)
+	if (pNewTargetParameters)
 	{
 		// TODO: not sure if it belongs here, in the resize buffers function or in both
 		// or maybe it is better to put it in the getviewport function?

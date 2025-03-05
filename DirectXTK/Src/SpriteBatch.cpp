@@ -633,7 +633,7 @@ void SpriteBatch::Impl::FlushBatch()
     {
         ID3D11ShaderResourceView* texture = mSortedSprites[pos]->texture;
 
-        _Analysis_assume_(texture != nullptr);
+        _Analysis_assume_(texture);
 
         // Flush whenever the texture changes.
         if (texture != batchTexture)
