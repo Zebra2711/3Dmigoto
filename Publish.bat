@@ -1,120 +1,86 @@
 @echo off
 SetLocal EnableDelayedExpansion
-Pushd "%~dp0"
+cd /d "%~dp0"
 
-REM -----------------------------------------------------------------------------
-REM Updated 8-25-24 for Github Actions server environment.
-REM Removes Git Stash because environment will always be clean.
-REM Remove MSBuild and Git setup as they are done in the Action script.
-REM Remove the git push of new version, now found in Action script.
-REM Removes the 7zip process, because artifact downloads are auto-zipped.
+REM Minimize PATH modification
+SET GIT_PATH=C:\Program Files (x86)\Git\bin
+SET PATH=%PATH%;%GIT_PATH%
 
-REM -----------------------------------------------------------------------------
-REM Publish batch file to safely build a complete Zip file to be published.
-REM This takes it out of being a manual operation, and will always build and
-REM zip the current code.
-REM
-REM To use this, create an external tool in Tools menu, and set:
-REM  Title:              Zip Release
-REM  Command:            %systemroot%\system32\cmd.exe
-REM  Arguments:          /k Publish.bat
-REM  Initial Directory:  $(SolutionDir)
-REM
-REM TODO: change Win32 to x86, it's annoying
+REM Store version for single read
+echo === Git Stash Uncommitted Changes ===
+git stash >nul 2>&1
 
-
-REM -----------------------------------------------------------------------------
-REM Before doing a build, let's bump the version number of the project. 
-REM This is stored in the version.h file at the project root, and is used 
-REM during resource file compiles to build the proper output in the DLLs.
-REM
-REM This awesome batch sequence to auto-increment VERSION_REVISION is courtesy of
-REM   *** TsaebehT ***
-
-For /F "tokens=1,2 delims=[]" %%? in ('Type Version.h ^| Find /V /N ""') do (
-Set "Line=%%@"
-if "!Line:~0,16!" == "#define VERSION_" (
-For /F "tokens=3,4 delims=_ " %%? in ("%%@") do (
-if "%%?" == "MAJOR" Set "Major=%%@"
-if "%%?" == "MINOR" Set "Minor=%%@"
-if "%%?" == "REVISION" (
-Set /A "NewRev=%%@+1","OldRev=%%@"
-Call Set "Line=%%Line:!OldRev!=!NewRev!%%"
-)))
-Set "Line%%?=!Line!"&&Set "Count=%%?"
+REM Optimize version reading and increment with single file read
+set "MAJOR="
+set "MINOR="
+set "NEWREV="
+for /F "usebackq tokens=1,2,3 delims= " %%a in (`type Version.h ^| findstr "VERSION_"`) do (
+    if "%%a %%b"=="#define VERSION_MAJOR" set "MAJOR=%%c"
+    if "%%a %%b"=="#define VERSION_MINOR" set "MINOR=%%c"
+    if "%%a %%b"=="#define VERSION_REVISION" set /a "NEWREV=%%c+1"
 )
 
-> Version.h (
-For /L %%? in (1,1,!Count!) do (
-Echo/!Line%%?!
-))
+REM Write version file efficiently
+(
+    echo #define VERSION_MAJOR %MAJOR%
+    echo #define VERSION_MINOR %MINOR%
+    echo #define VERSION_REVISION %NEWREV%
+)>Version.h
 
-echo(
-echo(
-echo === Latest Version After Increment ===
-echo(
-echo   !Major!.!Minor!.!NewRev!
+echo Current Version: %MAJOR%.%MINOR%.%NEWREV%
 
-echo(
-echo(
-echo === Building Win32 target ===
-echo(
-MSBUILD StereoVisionHacks.sln /p:Configuration="Zip Release" /p:Platform=Win32 /v:minimal /target:rebuild
-IF %ERRORLEVEL% NEQ 0 (
-	Echo *** x32 BUILD FAIL ***  
-	EXIT 1)
+REM Clean directories efficiently
+echo === Cleaning Output Directories ===
+for %%D in ("x32\Zip Release" "x64\Zip Release" "Zip Release") do (
+    if exist "%%~D" rd /s /q "%%~D"
+)
 
-echo(
-echo(
-echo === Building x64 target ===
-echo(
-MSBUILD StereoVisionHacks.sln /p:Configuration="Zip Release" /p:Platform=x64 /v:minimal /target:rebuild
-IF %ERRORLEVEL% NEQ 0 (
-	Echo *** x64 BUILD FAIL ***  
-	EXIT 1)
+REM Use newer VS path and minimize environment modification
+call "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat" >nul 2>&1
 
+REM Build with optimized output
+echo === Building Targets ===
+for %%P in (Win32 x64) do (
+    echo Building %%P...
+    MSBuild StereoVisionHacks.sln /p:Configuration="Zip Release" /p:Platform=%%P /v:minimal /m /nr:false /restore:false
+)
 
-REM -----------------------------------------------------------------------------
-REM Use 7zip command tool to create a full release that can be unzipped into a
-REM game directory. This builds a Side-by-Side zip of x32/x64.
-REM Includes d3dx.ini, d3dxdm.ini, and uninstall.bat for x32/x64.
+REM Commit version change
+git commit -am "Build %MAJOR%.%MINOR%.%NEWREV%" >nul 2>&1
 
-echo(
-echo(
-echo(
-echo(
-echo === Move builds to target zip directory ===
-echo(
-MKDIR ".\Zip Release\x32\"
-MKDIR ".\Zip Release\x32\ShaderFixes\"
-MOVE ".\x32\Zip Release\*.ini"  ".\Zip Release\x32\"
-MOVE ".\x32\Zip Release\uninstall.bat"  ".\Zip Release\x32\"
-MOVE ".\x32\Zip Release\*.dll"  ".\Zip Release\x32\"
-MOVE ".\x32\Zip Release\ShaderFixes\*.*"  ".\Zip Release\x32\ShaderFixes\"
+REM Restore state
+git stash pop >nul 2>&1
 
-echo(
-MKDIR ".\Zip Release\x64\"
-MKDIR ".\Zip Release\x64\ShaderFixes\"
-MOVE ".\x64\Zip Release\*.ini"  ".\Zip Release\x64\"
-MOVE ".\x64\Zip Release\uninstall.bat"  ".\Zip Release\x64\"
-MOVE ".\x64\Zip Release\*.dll"  ".\Zip Release\x64\"
-MOVE ".\x64\Zip Release\ShaderFixes\*.*"  ".\Zip Release\x64\ShaderFixes\"
+REM Create directory structure efficiently
+echo === Preparing Release Structure ===
+set "ZIP_DIR=.\Zip Release"
+for %%D in (
+    "%ZIP_DIR%\x32\ShaderFixes"
+    "%ZIP_DIR%\x64\ShaderFixes"
+    "%ZIP_DIR%\loader\x32"
+    "%ZIP_DIR%\loader\x64"
+    "%ZIP_DIR%\cmd_Decompiler"
+) do mkdir "%%~D" 2>nul
 
-echo(
-MKDIR ".\Zip Release\loader\"
-MKDIR ".\Zip Release\loader\x32\"
-MKDIR ".\Zip Release\loader\x64\"
-MOVE ".\x32\Zip Release\3DMigoto Loader.exe"  ".\Zip Release\loader\x32\"
-MOVE ".\x64\Zip Release\3DMigoto Loader.exe"  ".\Zip Release\loader\x64\"
+REM Move files efficiently
+for %%A in (x32 x64) do (
+    move ".\%%A\Zip Release\d3dx.ini" "%ZIP_DIR%\%%A\"
+    move ".\%%A\Zip Release\uninstall.bat" "%ZIP_DIR%\%%A\"
+    move ".\%%A\Zip Release\*.dll" "%ZIP_DIR%\%%A\"
+    move ".\%%A\Zip Release\ShaderFixes\*.*" "%ZIP_DIR%\%%A\ShaderFixes\"
+    move ".\%%A\Zip Release\3DMigoto Loader.exe" "%ZIP_DIR%\loader\%%A\"
+)
 
-echo(
-MKDIR ".\Zip Release\cmd_Decompiler\"
-MOVE ".\x32\Zip Release\cmd_Decompiler.exe"  ".\Zip Release\cmd_Decompiler\"
-COPY ".\Zip Release\x32\d3dcompiler_47.dll"  ".\Zip Release\cmd_Decompiler\"
+move ".\x32\Zip Release\cmd_Decompiler.exe" "%ZIP_DIR%\cmd_Decompiler\"
+copy "%ZIP_DIR%\x32\d3dcompiler_47.dll" "%ZIP_DIR%\cmd_Decompiler\" >nul
 
-REM -----------------------------------------------------------------------------
-REM Write new version to a file that we can use in Action script too.
+REM Create zips efficiently
+echo === Creating Release Archives ===
+set "VERSION=%MAJOR%.%MINOR%.%NEWREV%"
+7zip\7za a -tzip "%ZIP_DIR%\3Dmigoto-%VERSION%.zip" "%ZIP_DIR%\x32" "%ZIP_DIR%\x64" "%ZIP_DIR%\loader" -mx=1
+7zip\7za a -tzip "%ZIP_DIR%\cmd_Decompiler-%VERSION%.zip" "%ZIP_DIR%\cmd_Decompiler\*" -mx=1
 
-echo !Major!.!Minor!.!NewRev! > ".\Zip Release\Version-!Major!.!Minor!.!NewRev!.txt"
+echo Version-%VERSION%>"%ZIP_DIR%\Version-%VERSION%"
 
-Dir /s ".\Zip Release\"
+pause
+exit /b 0
