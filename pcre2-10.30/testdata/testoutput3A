@@ -9,25 +9,25 @@
 
 /^[\w]+/
 \= Expect no match
-    École
+    Ã‰cole
 No match
 
 /^[\w]+/locale=fr_FR
-    École
- 0: École
+    Ã‰cole
+ 0: Ã‰cole
 
 /^[\w]+/
 \= Expect no match
-    École
+    Ã‰cole
 No match
 
 /^[\W]+/
-    École
+    Ã‰cole
  0: \xc9
 
 /^[\W]+/locale=fr_FR
 \= Expect no match
-    École
+    Ã‰cole
 No match
 
 /[\b]/
@@ -46,36 +46,36 @@ No match
 
 /^\w+/
 \= Expect no match
-    École
+    Ã‰cole
 No match
 
 /^\w+/locale=fr_FR
-    École
- 0: École
+    Ã‰cole
+ 0: Ã‰cole
 
 /(.+)\b(.+)/
-    École
+    Ã‰cole
  0: \xc9cole
  1: \xc9
  2: cole
 
 /(.+)\b(.+)/locale=fr_FR
 \= Expect no match
-    École
+    Ã‰cole
 No match
 
-/École/i
-    École
+/Ã‰cole/i
+    Ã‰cole
  0: \xc9cole
 \= Expect no match
-    école
+    Ã©cole
 No match
 
-/École/i,locale=fr_FR
-    École
- 0: École
-    école
- 0: école
+/Ã‰cole/i,locale=fr_FR
+    Ã‰cole
+ 0: Ã‰cole
+    Ã©cole
+ 0: Ã©cole
 
 /\w/I
 Capturing subpattern count = 0
@@ -87,8 +87,8 @@ Subject length lower bound = 1
 Capturing subpattern count = 0
 Starting code units: 0 1 2 3 4 5 6 7 8 9 A B C D E F G H I J K L M N O P 
   Q R S T U V W X Y Z _ a b c d e f g h i j k l m n o p q r s t u v w x y z 
-  ª µ º À Á Â Ã Ä Å Æ Ç È É Ê Ë Ì Í Î Ï Ð Ñ Ò Ó Ô Õ Ö Ø Ù Ú Û Ü Ý Þ ß à á â 
-  ã ä å æ ç è é ê ë ì í î ï ð ñ ò ó ô õ ö ø ù ú û ü ý þ ÿ 
+  Âª Âµ Âº Ã€ Ã Ã‚ Ãƒ Ã„ Ã… Ã† Ã‡ Ãˆ Ã‰ ÃŠ Ã‹ ÃŒ Ã ÃŽ Ã Ã Ã‘ Ã’ Ã“ Ã” Ã• Ã– Ã˜ Ã™ Ãš Ã› Ãœ Ã Ãž ÃŸ Ã  Ã¡ Ã¢ 
+  Ã£ Ã¤ Ã¥ Ã¦ Ã§ Ã¨ Ã© Ãª Ã« Ã¬ Ã­ Ã® Ã¯ Ã° Ã± Ã² Ã³ Ã´ Ãµ Ã¶ Ã¸ Ã¹ Ãº Ã» Ã¼ Ã½ Ã¾ Ã¿ 
 Subject length lower bound = 1
 
 # All remaining tests are in the fr_FR locale, so set the default.
@@ -96,16 +96,16 @@ Subject length lower bound = 1
 #pattern locale=fr_FR
 
 /^[\xc8-\xc9]/i
-    École
- 0: É
-    école
- 0: é
+    Ã‰cole
+ 0: Ã‰
+    Ã©cole
+ 0: Ã©
 
 /^[\xc8-\xc9]/
-    École
- 0: É
+    Ã‰cole
+ 0: Ã‰
 \= Expect no match
-    école
+    Ã©cole
 No match
 
 /\W+/
@@ -128,21 +128,21 @@ No match
 
 /\w+/
     >>>\xaa<<<
- 0: ª
+ 0: Âª
     >>>\xba<<< 
- 0: º
+ 0: Âº
 
 /[\w]+/
     >>>\xaa<<<
- 0: ª
+ 0: Âª
     >>>\xba<<< 
- 0: º
+ 0: Âº
 
 /[[:alpha:]]+/
     >>>\xaa<<<
- 0: ª
+ 0: Âª
     >>>\xba<<< 
- 0: º
+ 0: Âº
     
 /[[:alpha:]][[:lower:]][[:upper:]]/IB
 ------------------------------------------------------------------
@@ -155,9 +155,9 @@ No match
 ------------------------------------------------------------------
 Capturing subpattern count = 0
 Starting code units: A B C D E F G H I J K L M N O P Q R S T U V W X Y Z 
-  a b c d e f g h i j k l m n o p q r s t u v w x y z ª µ º À Á Â Ã Ä Å Æ Ç 
-  È É Ê Ë Ì Í Î Ï Ð Ñ Ò Ó Ô Õ Ö Ø Ù Ú Û Ü Ý Þ ß à á â ã ä å æ ç è é ê ë ì í 
-  î ï ð ñ ò ó ô õ ö ø ù ú û ü ý þ ÿ 
+  a b c d e f g h i j k l m n o p q r s t u v w x y z Âª Âµ Âº Ã€ Ã Ã‚ Ãƒ Ã„ Ã… Ã† Ã‡ 
+  Ãˆ Ã‰ ÃŠ Ã‹ ÃŒ Ã ÃŽ Ã Ã Ã‘ Ã’ Ã“ Ã” Ã• Ã– Ã˜ Ã™ Ãš Ã› Ãœ Ã Ãž ÃŸ Ã  Ã¡ Ã¢ Ã£ Ã¤ Ã¥ Ã¦ Ã§ Ã¨ Ã© Ãª Ã« Ã¬ Ã­ 
+  Ã® Ã¯ Ã° Ã± Ã² Ã³ Ã´ Ãµ Ã¶ Ã¸ Ã¹ Ãº Ã» Ã¼ Ã½ Ã¾ Ã¿ 
 Subject length lower bound = 3
 
 # End of testinput3 

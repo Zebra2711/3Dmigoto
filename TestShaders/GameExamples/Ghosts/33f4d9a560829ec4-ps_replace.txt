@@ -115,7 +115,7 @@ void main(
   r1.w = 9.377517700e+000 * r2.w;
   r2.y = r2.w * -5.000000000e+000 + 4.500000000e+000;
 float4 zpos4 = .SampleLevel(s1, r7.xyzx, r2.y);
-float zTex = zpos4.Õ;
+float zTex = zpos4.√ç;
 float zpos = ;
 float wpos = 1.0 / zpos;
   r2.yzw = .SampleLevel(s1, r7.xyzx, r2.y).xyz;

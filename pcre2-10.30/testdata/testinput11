@@ -356,16 +356,16 @@
 # We can use pcre2test's utf8_input modifier to create wide pattern characters,
 # even though this test is run when UTF is not supported.
 
-/abı¿¿¿¿¿z/utf8_input
-    abı¿¿¿¿¿z
+/abÃ½Â¿Â¿Â¿Â¿Â¿z/utf8_input
+    abÃ½Â¿Â¿Â¿Â¿Â¿z
     ab\x{7fffffff}z
 
-/abÿı¿¿¿¿¿z/utf8_input
-    abÿı¿¿¿¿¿z
+/abÃ¿Ã½Â¿Â¿Â¿Â¿Â¿z/utf8_input
+    abÃ¿Ã½Â¿Â¿Â¿Â¿Â¿z
     ab\x{ffffffff}z 
 
-/abÿAz/utf8_input
-    abÿAz
+/abÃ¿Az/utf8_input
+    abÃ¿Az
     ab\x{80000041}z 
 
 # End of testinput11

@@ -649,20 +649,20 @@ Subject length lower bound = 1
 # We can use pcre2test's utf8_input modifier to create wide pattern characters,
 # even though this test is run when UTF is not supported.
 
-/abý¿¿¿¿¿z/utf8_input
-    abý¿¿¿¿¿z
+/abÃ½Â¿Â¿Â¿Â¿Â¿z/utf8_input
+    abÃ½Â¿Â¿Â¿Â¿Â¿z
  0: ab\x{7fffffff}z
     ab\x{7fffffff}z
  0: ab\x{7fffffff}z
 
-/abÿý¿¿¿¿¿z/utf8_input
-    abÿý¿¿¿¿¿z
+/abÃ¿Ã½Â¿Â¿Â¿Â¿Â¿z/utf8_input
+    abÃ¿Ã½Â¿Â¿Â¿Â¿Â¿z
  0: ab\x{ffffffff}z
     ab\x{ffffffff}z 
  0: ab\x{ffffffff}z
 
-/abÿAz/utf8_input
-    abÿAz
+/abÃ¿Az/utf8_input
+    abÃ¿Az
  0: ab\x{80000041}z
     ab\x{80000041}z 
  0: ab\x{80000041}z

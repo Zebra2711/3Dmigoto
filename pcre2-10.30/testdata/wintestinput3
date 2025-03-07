@@ -9,21 +9,21 @@
 
 /^[\w]+/
     *** Failers
-    École
+    Ã‰cole
 
 /^[\w]+/locale=french
-    École
+    Ã‰cole
 
 /^[\w]+/
     *** Failers
-    École
+    Ã‰cole
 
 /^[\W]+/
-    École
+    Ã‰cole
 
 /^[\W]+/locale=french
     *** Failers
-    École
+    Ã‰cole
 
 /[\b]/
     \b
@@ -37,26 +37,26 @@
 
 /^\w+/
     *** Failers
-    École
+    Ã‰cole
 
 /^\w+/locale=french
-    École
+    Ã‰cole
 
 /(.+)\b(.+)/
-    École
+    Ã‰cole
 
 /(.+)\b(.+)/locale=french
     *** Failers
-    École
+    Ã‰cole
 
-/École/i
-    École
+/Ã‰cole/i
+    Ã‰cole
     *** Failers
-    école
+    Ã©cole
 
-/École/i,locale=french
-    École
-    école
+/Ã‰cole/i,locale=french
+    Ã‰cole
+    Ã©cole
 
 /\w/I
 
@@ -67,13 +67,13 @@
 #pattern locale=french
 
 /^[\xc8-\xc9]/i
-    École
-    école
+    Ã‰cole
+    Ã©cole
 
 /^[\xc8-\xc9]/
-    École
+    Ã‰cole
     *** Failers 
-    école
+    Ã©cole
 
 /\W+/
     >>>\xaa<<<

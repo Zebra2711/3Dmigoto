@@ -9,21 +9,21 @@
 
 /^[\w]+/
 \= Expect no match
-    École
+    Ã‰cole
 
 /^[\w]+/locale=fr_FR
-    École
+    Ã‰cole
 
 /^[\w]+/
 \= Expect no match
-    École
+    Ã‰cole
 
 /^[\W]+/
-    École
+    Ã‰cole
 
 /^[\W]+/locale=fr_FR
 \= Expect no match
-    École
+    Ã‰cole
 
 /[\b]/
     \b
@@ -37,26 +37,26 @@
 
 /^\w+/
 \= Expect no match
-    École
+    Ã‰cole
 
 /^\w+/locale=fr_FR
-    École
+    Ã‰cole
 
 /(.+)\b(.+)/
-    École
+    Ã‰cole
 
 /(.+)\b(.+)/locale=fr_FR
 \= Expect no match
-    École
+    Ã‰cole
 
-/École/i
-    École
+/Ã‰cole/i
+    Ã‰cole
 \= Expect no match
-    école
+    Ã©cole
 
-/École/i,locale=fr_FR
-    École
-    école
+/Ã‰cole/i,locale=fr_FR
+    Ã‰cole
+    Ã©cole
 
 /\w/I
 
@@ -67,13 +67,13 @@
 #pattern locale=fr_FR
 
 /^[\xc8-\xc9]/i
-    École
-    école
+    Ã‰cole
+    Ã©cole
 
 /^[\xc8-\xc9]/
-    École
+    Ã‰cole
 \= Expect no match
-    école
+    Ã©cole
 
 /\W+/
     >>>\xaa<<<
